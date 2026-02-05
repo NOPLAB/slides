@@ -6,6 +6,37 @@ header: '世界モデル入門'
 footer: '2025'
 math: mathjax
 html: true
+style: |
+  section {
+    font-size: 28px;
+  }
+  .columns {
+    display: flex;
+    gap: 20px;
+  }
+  .col {
+    flex: 1;
+  }
+  .highlight {
+    background: linear-gradient(transparent 60%, #ffeb3b 60%);
+  }
+  img[alt~="center"] {
+    display: block;
+    margin: 0 auto;
+  }
+  .video-container {
+    background: #000;
+    border-radius: 8px;
+    padding: 10px;
+    text-align: center;
+  }
+  .video-thumbnail {
+    position: relative;
+    display: inline-block;
+  }
+  .play-button {
+    font-size: 48px;
+  }
 ---
 
 <!-- _class: lead -->
@@ -15,66 +46,94 @@ html: true
 
 # 世界モデル（World Model）入門
 
-## ロボットが「想像」で学ぶ時代
+## 環境モデルを使った効率的な強化学習
+
+![bg right:40% 80%](https://worldmodels.github.io/assets/world_model_schematic.svg)
 
 ---
 
-## 本日のアジェンダ
+## 本日の内容
 
-1. **強化学習の基礎** - エージェントと環境
-2. **世界モデルとは** - 想像力を持つAI
-3. **World Models (2018)** - 原点となる論文
-4. **Dreamer系列** - 想像内学習の進化
-5. **DayDreamer** - 実世界ロボットへの応用
-6. **Dreamer 4** - 最新の成果
-7. **まとめと展望** - 今後の可能性
+<div class="columns">
+<div class="col">
+
+1. **強化学習の基礎**
+2. **世界モデルとは**
+3. **World Models (2018)**
+4. **Dreamer系列**
+5. **DayDreamer**
+6. **Dreamer 4**
+7. **まとめ**
+
+</div>
+<div class="col">
+
+![center width:400px](https://danijar.com/asset/dreamerv3/header.gif)
+
+_DreamerV3がMinecraftをプレイする様子_
+
+</div>
+</div>
 
 ---
 
 <!-- _class: lead -->
 
-# セクション1
-
-## 強化学習の基礎
+# 強化学習の基礎
 
 ---
 
 ## 強化学習（Reinforcement Learning）とは
 
+<div class="columns">
+<div class="col">
+
+- **エージェント**が**環境**と相互作用
+- **行動**を取り、**報酬**を受け取る
+- **目標**: 累積報酬を最大化
+
+### 基本ループ
+
+$$s_t \xrightarrow{\text{行動 } a_t} r_t, s_{t+1}$$
+
+</div>
+<div class="col">
+
 ```mermaid
-graph LR
-    A[エージェント] -->|行動 a| B[環境]
-    B -->|状態 s, 報酬 r| A
+graph TB
+    Agent["🤖 エージェント"]
+    Env["🌍 環境"]
+    Agent -->|"行動 a_t"| Env
+    Env -->|"報酬 r_t"| Agent
+    Env -->|"状態 s_{t+1}"| Agent
 ```
 
-- **エージェント**が**環境**と相互作用して**行動**を取り、**報酬**を受け取る
-- **目標**: 累積報酬を最大化
-- **基本ループ**: 状態 $s_t$ → 行動 $a_t$ → 報酬 $r_t$ → 次の状態 $s_{t+1}$
+</div>
+</div>
 
 ---
 
 ## 従来の強化学習の課題
 
-### Sample Inefficiency（サンプル効率の悪さ）
+### サンプル効率の悪さ
 
 | 手法        | 必要なサンプル数 | 学習時間     |
 | ----------- | ---------------- | ------------ |
 | DQN (Atari) | 数千万フレーム   | 数日〜数週間 |
 | PPO         | 数百万ステップ   | 数時間〜数日 |
-| 人間        | 数分〜数時間     | 即座に適応   |
+| **人間**    | 数分〜数時間     | 即座に適応   |
 
 ### なぜ効率が悪いのか？
 
-- 試行錯誤に**実環境が必要**
+- 試行錯誤に**実環境が必要** → ロボットでは**危険・高コスト**
 - 失敗も含めて**全て実行が必要**
-- ロボットでは**危険・高コスト**
 
 ---
 
 ## モデルベース vs モデルフリー
 
-<div style="display: flex;">
-<div style="flex: 1; padding-right: 20px;">
+<div class="columns">
+<div class="col">
 
 ### モデルフリー
 
@@ -87,13 +146,13 @@ graph LR
 ```
 
 </div>
-<div style="flex: 1; padding-left: 20px;">
+<div class="col">
 
-### モデルベース
+### モデルベース（世界モデル）
 
 - 環境の**モデル**を学習
 - モデル内でシミュレーション
-- **世界モデル**はここに属する
+- **サンプル効率が高い**
 
 ```
 状態 → モデル → 予測 → 行動
@@ -109,53 +168,70 @@ graph LR
 <!-- _class: lead -->
 
 > 「人間は実際に行動する前に、頭の中でシミュレーションしている」
+> — K. Craik『The Nature of Explanation』(1943) の考え方に基づく
 
 ### 例：自転車に乗る練習
 
 1. **見て学ぶ**（観察）- 他の人が乗っている様子を見る
-2. **頭の中でイメージ**（想像）- どうすればバランスが取れるか考える
+2. **頭の中でイメージ** - どうすればバランスが取れるか考える
 3. **実際に試す**（実行）- 少しずつ練習する
 4. **失敗から修正**（学習）- 転んだら次は気をつける
 
-### 世界モデル = AIに「想像力」を与える
+### 世界モデル = 人工知能に環境の予測能力を与える
 
 ---
 
 <!-- _class: lead -->
 
-# セクション2
+# World Models (2018)
 
-## World Models (2018)
+### 世界モデル研究の原点
 
 ---
 
 ## World Models の概要
 
-<div style="display: flex; align-items: center;">
-<div style="flex: 1;">
+<div class="columns">
+<div class="col">
 
 ### 論文情報
 
 - **著者**: David Ha, Jürgen Schmidhuber
 - **年**: 2018
-- **成果**: 「夢の中で学習」を実現
+- **成果**: モデル内での学習を実現
 
-### 革新的なアイデア
+### 主なアイデア
 
-- 環境の「メンタルモデル」を構築
-- モデル内で**夢を見るように**学習
+- 環境の内部モデルを構築
+- モデル内で**シミュレーション**して学習
 - 実環境での試行を大幅削減
 
 </div>
-<div style="flex: 1; text-align: center;">
+<div class="col">
 
-**論文サイト**
-[worldmodels.github.io](https://worldmodels.github.io/)
+![center width:350px](https://worldmodels.github.io/assets/world_model_schematic.svg)
 
-![width:300px](https://worldmodels.github.io/assets/world_model_schematic.png)
+📎 [worldmodels.github.io](https://worldmodels.github.io/)
 
 </div>
 </div>
+
+---
+
+## World Models: CarRacing タスク
+
+![bg right:50% 95%](https://worldmodels.github.io/assets/carracing.svg)
+
+### OpenAI Gym CarRacing-v0
+
+- 64x64 RGB画像入力
+- 連続的なステアリング操作
+- **世界モデル内で学習**して実環境で評価
+
+### 結果
+
+- 従来手法を大幅に上回る性能
+- 実環境での試行回数を削減
 
 ---
 
@@ -163,14 +239,13 @@ graph LR
 
 ### 3つのコンポーネント
 
-```mermaid
-graph LR
-    Input[画像入力] --> V[V: VAE]
-    V -->|潜在変数 z| M[M: MDN-RNN]
-    V -->|z| C[C: Controller]
-    M -->|隠れ状態 h| C
-    C -->|行動 a| Output[出力]
-```
+<div class="columns">
+<div class="col">
+
+![center width:380px](https://worldmodels.github.io/assets/world_model_schematic.svg)
+
+</div>
+<div class="col">
 
 | コンポーネント     | 役割                 | モデル     |
 | ------------------ | -------------------- | ---------- |
@@ -178,32 +253,40 @@ graph LR
 | **M (Memory)**     | 次の状態を予測       | MDN-RNN    |
 | **C (Controller)** | 行動を決定           | 線形モデル |
 
+</div>
+</div>
+
 ---
 
-## VAE（変分オートエンコーダ）の役割
+## VAE: 画像を圧縮して理解する
 
-### Vision Model: 世界を「見る」
+<div class="columns">
+<div class="col">
 
-```mermaid
-graph LR
-    A[64x64 RGB画像] --> B[Encoder] --> C[潜在変数 z] --> D[Decoder] --> E[再構成画像]
-```
-
-- **機能**: 高次元の画像 → 低次元の潜在ベクトル $z$（情報の**圧縮と抽出**）
-- **なぜVAEか？**: **連続的**な潜在空間、**生成モデル**としても機能、滑らかな**補間**が可能
+### 変分オートエンコーダ
 
 $$z \sim \mathcal{N}(\mu, \sigma^2)$$
 
+- 高次元の画像 → 低次元の潜在ベクトル $z$
+- **連続的**な潜在空間
+- 滑らかな**補間**が可能
+
+</div>
+<div class="col">
+
+![center width:400px](https://worldmodels.github.io/assets/vae.svg)
+
+</div>
+</div>
+
 ---
 
-## MDN-RNN の役割
+## MDN-RNN: 未来を予測する
 
-### Memory Model: 未来を「予測」する
+<div class="columns">
+<div class="col">
 
-<div style="display: flex;">
-<div style="flex: 1;">
-
-#### Mixture Density Network + RNN
+### Mixture Density Network + RNN
 
 $$P(z_{t+1} | a_t, z_t, h_t)$$
 
@@ -212,16 +295,16 @@ $$P(z_{t+1} | a_t, z_t, h_t)$$
 - **不確実性**をモデル化
 
 </div>
-<div style="flex: 1;">
+<div class="col">
 
-#### 「夢」の中での学習
+### モデル内での学習
 
 1. MDN-RNNが仮想環境を生成
 2. Controllerはこの中で学習
 3. 実環境なしで方策改善
 
 ```
-現実 → 学習 → 夢 → 学習 → 現実
+データ収集 → モデル学習 → シミュレーション → 実行
 ```
 
 </div>
@@ -229,106 +312,152 @@ $$P(z_{t+1} | a_t, z_t, h_t)$$
 
 ---
 
+## World Models: VizDoom での実験
+
+![bg right:55% 90%](https://worldmodels.github.io/assets/doomrnn.svg)
+
+### VizDoom Take Cover
+
+- **FPS風ゲーム環境**
+- 敵の火の玉を避ける
+- 世界モデル内で学習
+
+### 「夢の中」での学習
+
+モデルが生成した仮想環境のみで学習し、実環境に転移
+
+---
+
 <!-- _class: lead -->
 
-# セクション3
+# Dreamer系列の進化
 
-## Dreamer系列の進化
+### より強力な世界モデルへ
 
 ---
 
 ## Dreamerの登場
 
-### DreamerV1 (2020) - 想像の中で学ぶ
+### DreamerV1 (2020) - モデル内での学習
+
+<div class="columns">
+<div class="col">
+
+#### 主な改善点
+
+- 潜在空間での行動学習
+- **Actor-Critic**導入
+- 連続行動空間対応
+
+#### World Modelsとの違い
+
+- より効率的な勾配計算
+- 複雑なタスクに対応
+- 汎用性向上
+
+</div>
+<div class="col">
 
 ```mermaid
-graph LR
-    A[World Model] --> B[想像ロールアウト]
+graph TB
+    A[World Model] --> B[ロールアウト]
     B --> C[Actor]
     B --> D[Critic]
     C --> E[方策更新]
     D --> E
 ```
 
-- **主な改善点**: 潜在空間での行動学習、Actor-Critic導入、連続行動空間対応
-- **World Modelsとの違い**: より効率的な勾配計算、複雑なタスクに対応、汎用性向上
+</div>
+</div>
 
 ---
 
 ## Dreamer系列の進化
 
-| バージョン    | 年   | 主な改善           | 成果             |
-| ------------- | ---- | ------------------ | ---------------- |
-| **DreamerV1** | 2020 | 基本アーキテクチャ | DMC ベンチマーク |
-| **DreamerV2** | 2021 | 離散潜在空間       | Atari 200ゲーム  |
-| **DreamerV3** | 2023 | スケーリング       | Minecraft生存    |
-| **Dreamer 4** | 2025 | 大規模化           | Minecraftダイヤ  |
+![bg right:40% 90%](https://danijar.com/asset/dreamerv3/bars.png)
 
-### 共通の思想
+| バージョン    | 年   | 主な改善           |
+| ------------- | ---- | ------------------ |
+| **DreamerV1** | 2020 | 基本アーキテクチャ |
+| **DreamerV2** | 2021 | 離散潜在空間       |
+| **DreamerV3** | 2023 | スケーリング       |
+| **Dreamer 4** | 2025 | 大規模化           |
 
-> **「想像の中で学習し、現実で実行」**
+### 共通の考え方
+
+> **「モデル内で学習し、実環境で実行」**
 
 ---
 
-## Imagination Training（想像内学習）
+## DreamerV3: Minecraftで生存
 
-### プロセス
+<div class="columns">
+<div class="col">
+
+### 成果
+
+- **150以上**のタスクで検証
+- **固定ハイパラ**で汎用的に動作
+- Minecraftでダイヤモンド発見
+
+### スケーリング特性
+
+モデルサイズを大きくすると：
+
+- 性能向上
+- データ効率も向上
+
+</div>
+<div class="col">
+
+![center width:450px](https://danijar.com/asset/dreamerv3/scaling.png)
+
+_スケーリングによる性能向上_
+
+</div>
+</div>
+
+---
+
+## モデル内学習（Imagination Training）
+
+### 学習サイクル
 
 ```mermaid
 graph LR
     A[実環境データ] --> B[世界モデル学習]
-    B --> C[想像ロールアウト]
+    B --> C[モデル内ロールアウト]
     C --> D[Actor-Critic更新]
     D --> E[実環境で実行]
     E --> A
 ```
 
-### 詳細ステップ
-
-1. **世界モデル**で未来を予測（ロールアウト）
-2. 予測した軌跡で**報酬を計算**
-3. **Actor-Critic**を更新
-4. 実環境で**少数のデータ収集**
-5. **世界モデル**を更新
-
----
-
-## なぜDreamerは効率的か？
-
-### 計算 vs 実行のトレードオフ
+### なぜ効率的か？
 
 | 項目           | モデルフリー | Dreamer    |
 | -------------- | ------------ | ---------- |
 | 実環境ステップ | 多い         | **少ない** |
-| 計算量         | 少ない       | 多い       |
 | 安全性         | 低い         | **高い**   |
-| 転移性         | 低い         | **高い**   |
 | 適応速度       | 遅い         | **速い**   |
-
-### GPUでの「夢見」
-
-- 1回の実環境ステップ → **数千回の想像内ステップ**
-- 失敗しても現実には影響なし
-- 危険な行動も安全に試せる
 
 ---
 
 <!-- _class: lead -->
 
-# セクション4
+# DayDreamer
 
-## DayDreamer
+### 実世界ロボットへの応用
 
 ---
 
 ## DayDreamer: 実世界ロボットへ
 
-<div style="display: flex; align-items: center;">
-<div style="flex: 1;">
+<div class="columns">
+<div class="col">
 
 ### 論文情報
 
-- **著者**: Wu, Escontrela, Hafner, Goldberg, Abbeel
+- **著者**: Wu, Escontrela, Hafner, et al.
 - **会議**: CoRL 2022
 - **成果**: **1時間**で四脚歩行を学習
 
@@ -339,78 +468,11 @@ graph LR
 - 安全かつ高速
 
 </div>
-<div style="flex: 1; text-align: center;">
+<div class="col">
 
-**論文**
-[arXiv:2206.14176](https://arxiv.org/abs/2206.14176)
+![center width:400px](https://img.youtube.com/vi/m9u93_55jhQ/maxresdefault.jpg)
 
-![width:350px](https://danijar.com/asset/daydreamer/robot.png)
-
-</div>
-</div>
-
----
-
-## DayDreamer システム構成
-
-### 3つのフェーズ
-
-```mermaid
-graph LR
-    subgraph Phase1[Phase 1: データ収集]
-        A[ロボット] --> B[センサーデータ]
-    end
-    subgraph Phase2[Phase 2: 学習]
-        C[世界モデル更新] --> D[想像内学習]
-    end
-    subgraph Phase3[Phase 3: 実行]
-        E[方策展開] --> F[行動]
-    end
-    B --> C
-    D --> E
-    F --> A
-```
-
-### 特徴
-
-- **オンライン**でモデル更新
-- **低頻度**の実環境インタラクション
-- **高頻度**の想像内学習
-
----
-
-## 四脚ロボット実験
-
-### Unitree A1 での実験
-
-<div style="display: flex;">
-<div style="flex: 1;">
-
-#### 実験設定
-
-- ロボット: **Unitree A1**
-- タスク: 歩行学習
-- 学習時間: **約1時間**
-- リセットなし
-
-#### 学習内容
-
-1. 仰向けから起き上がる
-2. 立ち上がる
-3. 歩行する
-
-</div>
-<div style="flex: 1;">
-
-#### 結果
-
-| 指標         | DayDreamer | 従来手法     |
-| ------------ | ---------- | ------------ |
-| 学習時間     | **1時間**  | 数日〜数週間 |
-| シミュレータ | **不要**   | 必要         |
-| 適応性       | **高い**   | 低い         |
-
-押されても**10分で適応**
+📎 [arXiv:2206.14176](https://arxiv.org/abs/2206.14176)
 
 </div>
 </div>
@@ -421,36 +483,96 @@ graph LR
 
 <!-- _class: lead -->
 
-### YouTube: 1時間で歩行を学習
+<div style="text-align: center;">
 
-<div style="text-align: center; font-size: 1.2em;">
+### 1時間で歩行を学習
 
-**[動画を見る: Learning to Walk in the Real World in 1 Hour](https://www.youtube.com/watch?v=xAXvfVTgqr0)**
+<iframe width="720" height="405" src="https://www.youtube.com/embed/xAXvfVTgqr0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
 
 </div>
 
-### 動画の内容
+---
 
-- 最初は転倒を繰り返す
-- 徐々にバランスを学習
-- 1時間後には安定して歩行
+## 四脚ロボット実験の詳細
 
-> シミュレータなし、実世界で直接学習
+<div class="columns">
+<div class="col">
+
+### 実験設定
+
+- ロボット: **Unitree A1**
+- タスク: 歩行学習
+- 学習時間: **約1時間**
+- リセット操作なし
+
+### 学習の流れ
+
+1. 仰向けから起き上がる
+2. 立ち上がる
+3. 歩行する
+
+</div>
+<div class="col">
+
+### 結果比較
+
+| 指標         | DayDreamer | 従来手法     |
+| ------------ | ---------- | ------------ |
+| 学習時間     | **1時間**  | 数日〜数週間 |
+| シミュレータ | **不要**   | 必要         |
+| 適応性       | **高い**   | 低い         |
+
+**押されても10分で適応！**
+
+</div>
+</div>
+
+---
+
+## DayDreamer: 様々なロボットで検証
+
+<div class="columns">
+<div class="col">
+
+### 四脚ロボット
+
+- 歩行学習
+- 外乱への適応
+
+### ロボットアーム
+
+- カメラ画像から物体把持
+- スパース報酬で学習
+
+</div>
+<div class="col">
+
+### 車輪ロボット
+
+- カメラのみでナビゲーション
+- ゴール位置への移動
+
+### 共通点
+
+**すべてシミュレータなしで学習成功**
+
+</div>
+</div>
 
 ---
 
 <!-- _class: lead -->
 
-# セクション5
+# Dreamer 4 (2025)
 
-## Dreamer 4 (最新)
+### 最新の世界モデル
 
 ---
 
 ## Dreamer 4 の概要
 
-<div style="display: flex; align-items: center;">
-<div style="flex: 1;">
+<div class="columns">
+<div class="col">
 
 ### 論文情報
 
@@ -465,14 +587,27 @@ graph LR
 - **リアルタイム**対話型推論
 
 </div>
-<div style="flex: 1; text-align: center;">
+<div class="col">
 
-**論文**
-[arXiv:2509.24527](https://arxiv.org/abs/2509.24527)
+![center width:450px](https://danijar.com/asset/dreamer4/benchmark.png)
 
-![width:350px](https://danijar.com/asset/dreamer4/benchmark.png)
+📎 [arXiv:2509.24527](https://arxiv.org/abs/2509.24527)
 
 </div>
+</div>
+
+---
+
+## Dreamer 4: デモ動画
+
+<!-- _class: lead -->
+
+<div style="text-align: center;">
+
+### Minecraftでダイヤモンド取得
+
+<iframe width="720" height="405" src="https://www.youtube.com/embed/oDlBtTcX0g0" frameborder="0" allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture" allowfullscreen></iframe>
+
 </div>
 
 ---
@@ -483,7 +618,7 @@ graph LR
 
 ```mermaid
 graph LR
-    A[木を集める] --> B[作業台を作る]
+    A[木を集める] --> B[作業台]
     B --> C[木のツルハシ]
     C --> D[石のツルハシ]
     D --> E[鉄のツルハシ]
@@ -491,71 +626,67 @@ graph LR
     F --> G[ダイヤモンド]
 ```
 
-- **20,000以上**のアクション列
+- **20,000以上**のアクション列が必要
 - 長期的な計画が必要
 - 複雑なクラフティングシステム
 
-### Dreamer 4の成果
-
-- **オフラインデータのみ**から学習（環境とのインタラクションなし）
-- OpenAI VPTを**100分の1のデータ**で上回る
-
 ---
 
-## Dreamer 4: デモ動画
+## Dreamer 4 vs 他手法
 
-<!-- _class: lead -->
+<div class="columns">
+<div class="col">
 
-### YouTube: Minecraftでダイヤモンド取得
+### Dreamer 4の成果
 
-<div style="text-align: center; font-size: 1.2em;">
-
-**[動画を見る: Dreamer 4 | Diamonds from Offline Experience](https://www.youtube.com/watch?v=oDlBtTcX0g0)**
+- **オフラインデータのみ**から学習
+- 環境とのインタラクションなし
+- OpenAI VPTを**100分の1のデータ**で上回る
 
 </div>
+<div class="col">
 
-### 動画の内容
+### 比較
 
-- オフライン学習したエージェント
-- 実際のMinecraft環境で評価
-- ダイヤモンドまでの全工程を達成
+| 手法          | データ量 | 成功率 |
+| ------------- | -------- | ------ |
+| OpenAI VPT    | 100x     | 低     |
+| GROOT         | 10x      | 中     |
+| **Dreamer 4** | **1x**   | **高** |
+
+</div>
+</div>
 
 ---
 
 ## Dreamer 4: 技術的ブレークスルー
 
-### 3つの革新
+<div class="columns">
+<div class="col">
 
-<div style="display: flex;">
-<div style="flex: 1;">
-
-#### 1. スケーリング
+### 1. スケーリング
 
 - より大きなモデル
 - より多くのデータ
-- より長い想像ホライズン
+- より長い予測ホライズン
+
+### 2. オフライン学習
+
+人間のプレイデータ → 世界モデル → モデル内RL
 
 </div>
-<div style="flex: 1;">
+<div class="col">
 
-#### 2. オフライン学習
-
-```
-人間のプレイデータ
-    ↓
-世界モデル学習
-    ↓
-想像内RL
-```
-
-</div>
-<div style="flex: 1;">
-
-#### 3. リアルタイム推論
+### 3. リアルタイム推論
 
 - 対話的なゲームプレイ
 - 人間のような応答速度
-- 単一GPUで動作
+- **単一GPUで動作**
+
+### 4. 物体相互作用
+
+- 複雑な物理を正確に予測
+- ロボティクスへの応用も期待
 
 </div>
 </div>
@@ -564,59 +695,55 @@ graph LR
 
 <!-- _class: lead -->
 
-# セクション6
-
-## まとめと今後の展望
+# まとめと今後の展望
 
 ---
 
 ## 世界モデルの進化まとめ
 
-| 手法             | 年   | 環境               | 主な成果         |
-| ---------------- | ---- | ------------------ | ---------------- |
-| **World Models** | 2018 | CarRacing, VizDoom | 概念実証         |
-| **DreamerV1**    | 2020 | DMC                | Actor-Critic導入 |
-| **DreamerV2**    | 2021 | Atari              | 離散潜在空間     |
-| **DreamerV3**    | 2023 | Minecraft等        | 汎用性向上       |
-| **DayDreamer**   | 2022 | **実ロボット**     | 実世界適用       |
-| **Dreamer 4**    | 2025 | Minecraft          | オフライン学習   |
+![bg right:35% 95%](https://danijar.com/asset/dreamerv3/header.gif)
 
-### 共通する核心アイデア
+| 手法             | 年      | 主な成果       |
+| ---------------- | ------- | -------------- |
+| **World Models** | 2018    | 概念実証       |
+| **DreamerV1-V3** | 2020-23 | 汎用性向上     |
+| **DayDreamer**   | 2022    | **実ロボット** |
+| **Dreamer 4**    | 2025    | オフライン学習 |
 
-> **「想像力」による効率的な学習**
+### 共通する基本的な考え方
+
+> **環境モデルを活用した効率的な学習**
 
 ---
 
 ## 今後の展望
 
-<div style="display: flex;">
-<div style="flex: 1;">
+<div class="columns">
+<div class="col">
 
 ### 技術的課題
 
 - より正確な**長期予測**
-- **マルチモーダル**対応
+- **複数モダリティ（視覚・言語）** 対応
 - **常識的知識**の統合
 - 計算効率の改善
 
 </div>
-<div style="flex: 1;">
+<div class="col">
 
 ### 応用分野
 
 - **自動運転**: 安全なシミュレーション
 - **産業用ロボット**: 少ないデータで学習
 - **医療ロボット**: 手術支援
-- **ゲームAI**: 複雑な戦略
+- **ゲーム人工知能**: 複雑な戦略
 
 </div>
 </div>
 
 ### 大規模言語モデルとの融合
 
-- **Foundation World Models**: 汎用的な世界理解
-- **言語による計画**: 自然言語で目標を指定
-- **マルチモーダル世界モデル**: 視覚・言語・行動の統合
+**Foundation World Models**: 視覚・言語・行動の統合
 
 ---
 
@@ -624,36 +751,15 @@ graph LR
 
 ### 主要論文
 
-1. Ha, D., & Schmidhuber, J. (2018). **World Models**. arXiv:1803.10122
-   - https://worldmodels.github.io/
-2. Hafner, D., et al. (2020). **Dream to Control**: Learning Behaviors by Latent Imagination. ICLR 2020
-3. Hafner, D., et al. (2021). **Mastering Atari with Discrete World Models**. ICLR 2021
-4. Hafner, D., et al. (2023). **Mastering Diverse Domains through World Models**. arXiv:2301.04104
-5. Wu, P., et al. (2022). **DayDreamer**: World Models for Physical Robot Learning. CoRL 2022
-   - https://arxiv.org/abs/2206.14176
-6. Hafner, D., Yan, W., & Lillicrap, T. (2025). **Dreamer 4**. arXiv:2509.24527
-   - https://danijar.com/project/dreamer4/
+1. Ha & Schmidhuber (2018). **World Models** - [worldmodels.github.io](https://worldmodels.github.io/)
+2. Hafner et al. (2020-2023). **Dreamer V1-V3** - ICLR/arXiv
+3. Wu et al. (2022). **DayDreamer** - [arXiv:2206.14176](https://arxiv.org/abs/2206.14176)
+4. Hafner et al. (2025). **Dreamer 4** - [arXiv:2509.24527](https://arxiv.org/abs/2509.24527)
 
----
+### デモ動画
 
-## 参考リンク
-
-### YouTube動画
-
-- **DayDreamer** (1時間で歩行学習)
-  - https://www.youtube.com/watch?v=xAXvfVTgqr0
-- **Dreamer 4** (Minecraftダイヤモンド)
-  - https://www.youtube.com/watch?v=oDlBtTcX0g0
-
-### プロジェクトページ
-
-- World Models: https://worldmodels.github.io/
-- DayDreamer: https://danijar.com/project/daydreamer/
-- Dreamer 4: https://danijar.com/project/dreamer4/
-
-### コード
-
-- DayDreamer: https://github.com/danijar/daydreamer
+- DayDreamer: [youtube.com/watch?v=xAXvfVTgqr0](https://www.youtube.com/watch?v=xAXvfVTgqr0)
+- Dreamer 4: [youtube.com/watch?v=oDlBtTcX0g0](https://www.youtube.com/watch?v=oDlBtTcX0g0)
 
 ---
 
@@ -662,6 +768,8 @@ graph LR
 <!-- _header: '' -->
 <!-- _footer: '' -->
 
-# ありがとうございました
+# ご清聴ありがとうございました
 
 ### 質問はありますか？
+
+![bg right:40% 80%](https://danijar.com/asset/dreamerv3/header.gif)

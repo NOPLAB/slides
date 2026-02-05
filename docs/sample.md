@@ -1,13 +1,12 @@
-iTitle
-=====
+# iTitle
 
 ---
 
 ## Slide One
 
-* Apple
-* Banana
-* Carrot
+- Apple
+- Banana
+- Carrot
 
 ---
 
@@ -16,4 +15,3 @@ iTitle
 - Dog
 - Cat
 - Frog
-

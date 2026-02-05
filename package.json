@@ -1,5 +1,14 @@
 {
   "devDependencies": {
-    "@marp-team/marp-cli": "^4.2.3"
+    "@commitlint/cli": "^20.4.1",
+    "@commitlint/config-conventional": "^20.4.1",
+    "@marp-team/marp-cli": "^4.2.3",
+    "husky": "^9.1.7",
+    "prettier": "^3.8.1"
+  },
+  "scripts": {
+    "prepare": "husky",
+    "format": "prettier --write .",
+    "format:check": "prettier --check ."
   }
 }

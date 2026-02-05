@@ -3,7 +3,7 @@ concurrency: marp-to-pages
 
 on:
   push:
-    branches: [ main ]
+    branches: [main]
 
 jobs:
   build:
@@ -14,7 +14,6 @@ jobs:
       contents: write
       pull-requests: write
     steps:
-
       - name: Checkout code
         uses: actions/checkout@v6
 

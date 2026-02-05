@@ -17,6 +17,15 @@ jobs:
       - name: Checkout code
         uses: actions/checkout@v6
 
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: '22'
+          cache: 'npm'
+
+      - name: Install dependencies
+        run: npm ci
+
       - name: Ensure build dir exists
         run: mkdir -p build
 
@@ -24,32 +33,16 @@ jobs:
         run: if [[ -d img ]]; then cp -R img build/img; fi
 
       - name: Marp Build (README)
-        uses: docker://marpteam/marp-cli
-        with:
-          args: README.md -o build/index.html
-        env:
-          MARP_USER: root:root
+        run: npx marp README.md -o build/index.html
 
       - name: Marp Build (README.pdf)
-        uses: docker://marpteam/marp-cli
-        with:
-          args: README.md --allow-local-files -o build/README.pdf
-        env:
-          MARP_USER: root:root
+        run: npx marp README.md --allow-local-files -o build/README.pdf
 
       - name: Marp Build (README.pptx)
-        uses: docker://marpteam/marp-cli
-        with:
-          args: README.md --allow-local-files -o build/README.pptx
-        env:
-          MARP_USER: root:root
+        run: npx marp README.md --allow-local-files -o build/README.pptx
 
-      - name: Marp Build
-        uses: docker://marpteam/marp-cli
-        with:
-          args: -I docs/ -o build/docs/
-        env:
-          MARP_USER: root:root
+      - name: Marp Build (docs)
+        run: npx marp -I docs/ -o build/docs/
 
       - name: Upload artifact
         uses: actions/upload-pages-artifact@v4

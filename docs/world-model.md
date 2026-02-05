@@ -44,9 +44,9 @@ style: |
 <!-- _header: '' -->
 <!-- _footer: '' -->
 
-# 世界モデル（World Model）入門
+# 世界モデル入門
 
-## 環境モデルを使った効率的な強化学習
+## World Model — 環境モデルを使った効率的な強化学習
 
 ![bg right:40% 80%](https://worldmodels.github.io/assets/world_model_schematic.svg)
 
